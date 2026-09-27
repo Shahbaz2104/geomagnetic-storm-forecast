@@ -75,14 +75,14 @@ def plot_model_diagnostics(
     print(classification_report(y_test, preds[best_name], digits=3, zero_division=0))
 
 
-def permutation_importance_report(
+def compute_importance(
     models: dict[str, object],
     results: pd.DataFrame,
     X_test: pd.DataFrame,
     y_test: pd.Series,
     feature_cols: list[str],
-    output_dir: Path,
-) -> pd.Series:
+) -> tuple[str, pd.Series]:
+    """Permutation importance for the best learned model (pure computation)."""
     learned_names = list(models)
     best_learned = max(
         learned_names,
@@ -99,6 +99,20 @@ def permutation_importance_report(
     )
     importance = pd.Series(perm.importances_mean, index=feature_cols).sort_values(
         ascending=False
+    )
+    return best_learned, importance
+
+
+def permutation_importance_report(
+    models: dict[str, object],
+    results: pd.DataFrame,
+    X_test: pd.DataFrame,
+    y_test: pd.Series,
+    feature_cols: list[str],
+    output_dir: Path,
+) -> pd.Series:
+    best_learned, importance = compute_importance(
+        models, results, X_test, y_test, feature_cols
     )
     print("Permutation importance for:", best_learned)
     print(importance.head(10).round(4).to_string())

@@ -45,21 +45,48 @@ uv run forecast --skip-plots           # metrics only
 uv run forecast --data-dir /kaggle/input   # run against a Kaggle attachment
 ```
 
+## Interactive dashboard
+
+A Streamlit + Plotly explorer for the data, the models, and single-day predictions:
+
+```bash
+uv run streamlit run dashboard.py
+```
+
+![Dashboard overview](docs/dashboard_overview.png)
+
+**Views**
+
+| View | What it shows |
+| --- | --- |
+| Overview | Dynamic headline, KPIs, model comparison (AP vs baseline) |
+| Storm history | 1997–2024 daily max-K timeline with storm markers and a year-range filter |
+| Solar cycle | Sunspots + radio flux on stacked axes, flare composition, storm correlations |
+| Storm calendar | Year × month heatmap of storm days |
+| Model lab | PR/ROC curves, results table, and a live decision-threshold slider (confusion matrix updates as you drag) |
+| Feature lab | Permutation importance, feature distributions by class, 2-feature scatter |
+| Predict a day | Date picker → probability gauge, persistence comparison, actual outcome |
+
+![Storm history view](docs/dashboard_storm_history.png)
+
 ## Project structure
 
 ```
 .
-├── docs/prompt.md              # original Kaggle notebook export (source writeup)
-├── scripts/download_data.sh    # Kaggle CLI download via uvx
+├── dashboard.py                   # streamlit + plotly dashboard entrypoint
+├── docs/prompt.md                 # original Kaggle notebook export (source writeup)
+├── docs/dashboard_*.png           # dashboard screenshots
+├── scripts/download_data.sh       # Kaggle CLI download via uvx
 ├── src/geomag_forecast/
-│   ├── config.py               # thresholds, expected schemas, paths
-│   ├── data.py                 # discovery, validation, sentinel cleaning
-│   ├── features.py             # daily aggregation, next-day target, leakage audit
-│   ├── models.py               # split, pipelines, metric computation
-│   ├── evaluation.py           # figures, classification report, permutation importance
-│   └── cli.py                  # `forecast` entrypoint
-├── data/raw/                   # CSVs (gitignored)
-└── outputs/                    # generated figures + metrics (gitignored)
+│   ├── config.py                  # thresholds, expected schemas, paths
+│   ├── data.py                    # discovery, validation, sentinel cleaning
+│   ├── features.py                # daily aggregation, next-day target, leakage audit
+│   ├── models.py                  # split, pipelines, metric computation
+│   ├── evaluation.py              # figures, classification report, permutation importance
+│   ├── charts.py                  # plotly figure builders for the dashboard
+│   └── cli.py                     # `forecast` entrypoint
+├── data/raw/                      # CSVs (gitignored)
+└── outputs/                       # generated figures + metrics (gitignored)
 ```
 
 ## Reference results
