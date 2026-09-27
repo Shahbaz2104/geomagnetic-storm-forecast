@@ -1,0 +1,21 @@
+# Data (download via scripts/download_data.sh)
+data/raw/*
+!data/raw/.gitkeep
+
+# Generated figures and metrics
+outputs/*
+!outputs/.gitkeep
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Environments / credentials
+.env
+.kaggle/
+
+# OS
+.DS_Store
