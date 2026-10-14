@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from geomag_forecast.config import DEFAULT_DATA_DIR, STORM_K_THRESHOLD
@@ -16,10 +17,10 @@ def test_full_pipeline_on_committed_data():
     feature_cols = leakage_audit(daily)
     train, test = chronological_split(daily)
 
-    # Coverage: 1997 → 2024, ~9.3k modeled days.
+    # Coverage: 1997 → 2024, ~9k modeled days.
     assert daily["date"].min().year == 1997
     assert daily["date"].max().year == 2024
-    assert 9_000 <= len(daily) <= 9_500
+    assert 8_800 <= len(daily) <= 9_200
     assert daily["date"].is_monotonic_increasing
 
     # Rare but not degenerate event rate.
@@ -36,6 +37,19 @@ def test_full_pipeline_on_committed_data():
     assert "next_day_max_k" not in feature_cols
     assert "date" not in feature_cols
     assert "gmag_k_max" in feature_cols
+
+    # Every surviving row has a true calendar-day t+1 that exists in both
+    # sources, and the label is taken from THAT day (gaps are dropped, never
+    # bridged to a later row).
+    gmag_daily = geomag.assign(date=geomag["Timestamp"].dt.normalize()).groupby("date")[
+        "Estimated K"
+    ].max()
+    solar_dates = pd.DatetimeIndex(solar["Date"].unique())
+    next_date = daily["date"] + pd.Timedelta(days=1)
+    assert next_date.isin(gmag_daily.index).all()
+    assert next_date.isin(solar_dates).all()
+    expected_k = gmag_daily.reindex(next_date).to_numpy()
+    np.testing.assert_allclose(daily["next_day_max_k"].to_numpy(), expected_k)
 
     # Storm labels agree with the threshold definition.
     observed = (daily["next_day_max_k"] >= STORM_K_THRESHOLD).astype(int)

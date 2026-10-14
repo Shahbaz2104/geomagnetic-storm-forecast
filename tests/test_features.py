@@ -41,6 +41,27 @@ def test_build_daily_table_drops_days_without_solar_data(geomag_df, solar_df):
     ]
 
 
+def test_build_daily_table_never_labels_across_a_gap(geomag_df, solar_df):
+    """A missing middle day must not be bridged: Jan 2's label would come from
+    Jan 4 (t+3) if gaps were skipped — that row must be dropped instead."""
+    solar_subset = solar_df[solar_df["Date"] != pd.Timestamp("2020-01-03", tz="UTC")]
+    daily = build_daily_table(geomag_df, solar_subset)
+
+    # Jan 2's successor is Jan 4 (gap) → dropped; Jan 5 is last → dropped.
+    assert daily["date"].tolist() == [
+        pd.Timestamp("2020-01-01", tz="UTC"),
+        pd.Timestamp("2020-01-04", tz="UTC"),
+    ]
+    # Jan 1 keeps its true t+1 label (Jan 2's max K = 6 → storm).
+    jan1 = daily[daily["date"] == pd.Timestamp("2020-01-01", tz="UTC")].iloc[0]
+    assert jan1["next_day_max_k"] == 6
+    assert jan1["next_day_storm"] == 1
+    # Jan 4's true t+1 is Jan 5 (max K = 2 → calm).
+    jan4 = daily[daily["date"] == pd.Timestamp("2020-01-04", tz="UTC")].iloc[0]
+    assert jan4["next_day_max_k"] == 2
+    assert jan4["next_day_storm"] == 0
+
+
 def test_leakage_audit_excludes_future_columns(geomag_df, solar_df):
     daily = build_daily_table(geomag_df, solar_df)
     feature_cols = leakage_audit(daily)

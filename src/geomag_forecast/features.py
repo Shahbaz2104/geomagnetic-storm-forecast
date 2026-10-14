@@ -40,7 +40,12 @@ def build_daily_table(geomag: pd.DataFrame, solar: pd.DataFrame) -> pd.DataFrame
         .sort_values("date")
         .reset_index(drop=True)
     )
+    # Label strictly from calendar day t+1. Where the merged series has a gap,
+    # the next row is a later day (up to months later), so the label would be
+    # wrong — those rows have no t+1 label and are dropped below.
+    successor_gap = daily["date"].shift(-1) - daily["date"]
     daily["next_day_max_k"] = daily["gmag_k_max"].shift(-1)
+    daily.loc[successor_gap != pd.Timedelta(days=1), "next_day_max_k"] = np.nan
     daily["next_day_storm"] = (daily["next_day_max_k"] >= STORM_K_THRESHOLD).astype("float")
     daily.loc[daily["next_day_max_k"].isna(), "next_day_storm"] = np.nan
     daily = daily.dropna(subset=["next_day_storm"]).copy()

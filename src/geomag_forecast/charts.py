@@ -106,7 +106,7 @@ def storm_timeline(daily: pd.DataFrame) -> go.Figure:
             y=storms["gmag_k_max"],
             mode="markers",
             name=f"Storm days (K ≥ {STORM_K_THRESHOLD})",
-            marker={"color": ORANGE, "size": 4, "symbol": "triangle-up"},
+            marker={"color": ORANGE, "size": 7, "symbol": "triangle-up"},
             hovertemplate="%{x|%Y-%m-%d}<br>max K: %{y:.1f}<extra></extra>",
         )
     )

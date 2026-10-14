@@ -24,7 +24,7 @@ Coverage: 1997-01-01 → 2024-04-12. The source uses `*` (and `-1` in documentat
 
 1. **Discover & validate** — recursive CSV discovery (works under `/kaggle/input` on Kaggle too), schema assertions, date parsing, duplicate-timestamp and chronology checks, sentinel conversion.
 2. **Aggregate** — one row per UTC day: max/mean/std of estimated K, A-index stats, observation counts, mid/high-latitude K maxima, joined with same-day solar indicators.
-3. **Target** — `next_day_storm = 1` when the following day's maximum estimated K is ≥ 5 (NOAA: K = 5 or higher indicates storm conditions). The final day is dropped because its future label is unavailable.
+3. **Target** — `next_day_storm = 1` when the following day's maximum estimated K is ≥ 5 (NOAA: K = 5 or higher indicates storm conditions). The final day is dropped because its future label is unavailable, and days whose t+1 is missing from the merged series (data gaps) are dropped rather than labeled from a later day.
 4. **Leakage audit** — `next_day_max_k` / `next_day_storm` are excluded from the feature list; an audit table prints feature dates vs. target dates.
 5. **Chronological split** — earliest 80% of dates for training, latest 20% as an untouched test set (no shuffling: nearby days belong to the same space-weather regime).
 6. **Models** — a persistence baseline (today's K ≥ 5), logistic regression, and histogram gradient boosting, all with median imputation inside the pipeline and `class_weight="balanced"` for the rare-event setting.
@@ -106,7 +106,7 @@ uv run streamlit run dashboard.py
 
 ```bash
 uv sync --group dev
-uv run pytest          # 19 tests: target construction, leakage, split, charts, smoke
+uv run pytest          # 20 tests: target construction, leakage, split, charts, smoke
 uv run ruff check .
 ```
 
@@ -114,19 +114,19 @@ The suite covers next-day target construction and the NOAA threshold boundary, t
 
 ## Reference results
 
-Reported by the original notebook run (data through 2024-04-11; test window 2018-09-27 → 2024-04-11, storm rate 8.23%):
+From `uv run forecast` in this repo (Python 3.12 / scikit-learn 1.9.1, pinned via `.python-version` and `uv.lock`; data through 2024-04-11; test window 2018-10-23 → 2024-04-11, storm rate 8.20%):
 
 | Model | Avg. precision | ROC AUC | Balanced acc. | Precision | Recall | F1 |
 | --- | --- | --- | --- | --- | --- | --- |
-| Logistic regression | **0.270** | 0.734 | 0.679 | 0.212 | 0.536 | 0.304 |
-| Histogram gradient boosting | 0.229 | 0.708 | 0.648 | 0.207 | 0.451 | 0.284 |
-| Persistence baseline | 0.159 | 0.630 | 0.630 | 0.320 | 0.320 | 0.320 |
+| Logistic regression | **0.279** | 0.743 | 0.681 | 0.215 | 0.537 | 0.307 |
+| Histogram gradient boosting | 0.244 | 0.710 | 0.657 | 0.212 | 0.469 | 0.292 |
+| Persistence baseline | 0.163 | 0.634 | 0.634 | 0.331 | 0.327 | 0.329 |
 
-Top permutation importances (logistic regression): `gmag_k_mean` (0.089), `gmag_k_std` (0.028), `Radio Flux 10.7cm` (0.015), `mid_k_max` (0.012).
+Top permutation importances (logistic regression): `gmag_k_mean` (0.082), `gmag_k_std` (0.027), `Radio Flux 10.7cm` (0.011), `mid_k_max` (0.008).
 
-Storm prevalence in the model table: 13.09% (8,076 calm / 1,216 storm days).
+Storm prevalence in the model table: 13.11% (7,784 calm / 1,174 storm days).
 
-> Logistic regression, the persistence baseline, the classification report, and the permutation importances reproduce exactly. Histogram gradient boosting can vary slightly across scikit-learn versions: the locked environment in `uv.lock` (scikit-learn 1.7.2) yields AP 0.236 versus 0.229 in the table above; `uv run forecast` regenerates `outputs/results.csv` for whatever environment you run.
+> **Note on label correctness.** The original notebook assigned the next-day label to the *next row* after the daily join, silently bridging data gaps — 334 rows (3.6%) were labeled from later days, up to 92 days ahead — and its own adjacency check was disabled. This port verifies that t+1 is the true next calendar day and drops gap-adjacent rows instead (this is why the numbers above differ slightly from the notebook's, e.g. its logistic-regression AP of 0.270). `uv run forecast` regenerates `outputs/results.csv` for your environment.
 
 ## Limitations
 

@@ -68,9 +68,9 @@ def run_pipeline() -> dict:
 
 try:
     RUN = run_pipeline()
-except FileNotFoundError as exc:
+except (FileNotFoundError, ValueError) as exc:
     st.error(
-        "The dataset is missing, so nothing can be loaded.\n\n"
+        "The dataset could not be loaded, so nothing can be shown.\n\n"
         f"{exc}\n\n"
         "Either restore the CSVs in `data/raw/` or re-fetch them with "
         "`./scripts/download_data.sh`, then refresh this page."
@@ -184,12 +184,14 @@ def storm_history() -> None:
             "Worst day",
             f"{worst['date'].date()}",
             delta=f"max K {worst['gmag_k_max']:.0f}",
+            delta_color="off",
         )
 
     st.plotly_chart(ch.storm_timeline(view), width="stretch")
     st.caption(
-        "Orange triangles are days whose maximum estimated K reached 5 or higher — "
-        "these are the events the benchmark tries to signal one day ahead."
+        f"Orange triangles are days whose maximum estimated K reached "
+        f"{STORM_K_THRESHOLD} or higher — these are the events the benchmark "
+        "tries to signal one day ahead."
     )
 
 
