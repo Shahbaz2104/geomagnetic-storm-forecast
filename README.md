@@ -3,9 +3,9 @@
 [![CI](https://github.com/Shahbaz2104/geomagnetic-storm-forecast/actions/workflows/ci.yml/badge.svg)](https://github.com/Shahbaz2104/geomagnetic-storm-forecast/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Streamlit](https://img.shields.io/badge/Interactive%20dashboard-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://share.streamlit.io/Shahbaz2104/geomagnetic-storm-forecast/main/dashboard.py)
+[![Streamlit](https://img.shields.io/badge/Interactive%20dashboard-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://geomagnetic-storm-forecast-cfbtyoqzhgtxsv3welsyfo.streamlit.app/)
 
-**[Live demo](https://share.streamlit.io/Shahbaz2104/geomagnetic-storm-forecast/main/dashboard.py)** · A practical, leakage-safe benchmark that asks: **can information available by the end of day _t_ distinguish whether day _t+1_ will contain a geomagnetic storm** (maximum estimated 3-hour K-index ≥ 5)?
+**[Live demo](https://geomagnetic-storm-forecast-cfbtyoqzhgtxsv3welsyfo.streamlit.app/)** · A practical, leakage-safe benchmark that asks: **can information available by the end of day _t_ distinguish whether day _t+1_ will contain a geomagnetic storm** (maximum estimated 3-hour K-index ≥ 5)?
 
 This repository is a faithful, runnable port of the Kaggle notebook exported in [`docs/prompt.md`](docs/prompt.md). The emphasis is a transparent early-warning baseline, not a claim of operational forecasting skill.
 
