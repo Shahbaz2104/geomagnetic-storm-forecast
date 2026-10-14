@@ -1,5 +1,7 @@
 """Chronological split, model pipelines, and metric computation."""
 
+import logging
+
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import HistGradientBoostingClassifier
@@ -18,28 +20,28 @@ from sklearn.preprocessing import StandardScaler
 
 from .config import RANDOM_STATE, STORM_K_THRESHOLD, TRAIN_FRACTION
 
+logger = logging.getLogger(__name__)
+
 
 def chronological_split(daily: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     cut = int(len(daily) * TRAIN_FRACTION)
     train = daily.iloc[:cut].copy()
     test = daily.iloc[cut:].copy()
 
-    print(
-        "Train:",
+    logger.info(
+        "Train: %s to %s %s",
         train["date"].min().date(),
-        "to",
         train["date"].max().date(),
         train.shape,
     )
-    print(
-        "Test: ",
+    logger.info(
+        "Test:  %s to %s %s",
         test["date"].min().date(),
-        "to",
         test["date"].max().date(),
         test.shape,
     )
-    print("Train storm rate:", f"{train['next_day_storm'].mean():.3%}")
-    print("Test storm rate:", f"{test['next_day_storm'].mean():.3%}")
+    logger.info("Train storm rate: %.3f%%", 100 * train["next_day_storm"].mean())
+    logger.info("Test storm rate:  %.3f%%", 100 * test["next_day_storm"].mean())
     return train, test
 
 
@@ -121,5 +123,5 @@ def evaluate(
         rows.append(score_row(name, y_test, pred, prob))
 
     results = pd.DataFrame(rows).sort_values("average_precision", ascending=False)
-    print(results.round(3).to_string(index=False))
+    logger.info("\n%s", results.round(3).to_string(index=False))
     return results, probs, preds

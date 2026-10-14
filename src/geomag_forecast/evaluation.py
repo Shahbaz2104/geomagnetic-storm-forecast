@@ -1,5 +1,6 @@
-"""Figures and report printing (mirrors the original notebook sections)."""
+"""Figures and report logging (mirrors the original notebook sections)."""
 
+import logging
 from pathlib import Path
 
 import matplotlib
@@ -10,9 +11,15 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from sklearn.inspection import permutation_importance
-from sklearn.metrics import PrecisionRecallDisplay, classification_report, confusion_matrix
+from sklearn.metrics import (
+    PrecisionRecallDisplay,
+    classification_report,
+    confusion_matrix,
+)
 
 from .config import RANDOM_STATE, STORM_K_THRESHOLD
+
+logger = logging.getLogger(__name__)
 
 sns.set_theme(style="whitegrid", context="notebook")
 
@@ -22,7 +29,7 @@ def _save(fig: plt.Figure, output_dir: Path, name: str) -> None:
     path = output_dir / name
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
-    print(f"Saved figure: {path}")
+    logger.info("Saved figure: %s", path)
 
 
 def plot_raw_signals(geomag: pd.DataFrame, solar: pd.DataFrame, output_dir: Path) -> None:
@@ -55,24 +62,26 @@ def plot_model_diagnostics(
     results: pd.DataFrame,
     output_dir: Path,
 ) -> None:
+    best_name = results.iloc[0]["model"]
+
     fig, axes = plt.subplots(1, 2, figsize=(14, 5), constrained_layout=True)
-    for name, pred in preds.items():
-        cm = confusion_matrix(y_test, pred, labels=[0, 1])
-        sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", cbar=False, ax=axes[0])
-        axes[0].set_title(f"Confusion matrix: {name}")
-        axes[0].set_xlabel("Predicted")
-        axes[0].set_ylabel("Observed")
-        break
+    cm = confusion_matrix(y_test, preds[best_name], labels=[0, 1])
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", cbar=False, ax=axes[0])
+    axes[0].set_title(f"Confusion matrix: {best_name}")
+    axes[0].set_xlabel("Predicted")
+    axes[0].set_ylabel("Observed")
 
     for name, prob in probs.items():
         PrecisionRecallDisplay.from_predictions(y_test, prob, name=name, ax=axes[1])
     axes[1].set_title("Precision-recall curves on chronological test set")
     _save(fig, output_dir, "03_confusion_matrix_and_pr_curves.png")
 
-    best_name = results.iloc[0]["model"]
-    print("Best by average precision on this executed split:", best_name)
-    print("\nClassification report for the best learned model or baseline:")
-    print(classification_report(y_test, preds[best_name], digits=3, zero_division=0))
+    logger.info("Best by average precision on this executed split: %s", best_name)
+    logger.info("Classification report for the best learned model or baseline:")
+    logger.info(
+        "\n%s",
+        classification_report(y_test, preds[best_name], digits=3, zero_division=0),
+    )
 
 
 def compute_importance(
@@ -114,8 +123,8 @@ def permutation_importance_report(
     best_learned, importance = compute_importance(
         models, results, X_test, y_test, feature_cols
     )
-    print("Permutation importance for:", best_learned)
-    print(importance.head(10).round(4).to_string())
+    logger.info("Permutation importance for: %s", best_learned)
+    logger.info("\n%s", importance.head(10).round(4).to_string())
 
     fig, ax = plt.subplots(figsize=(9, 5))
     importance.head(10).sort_values().plot(kind="barh", ax=ax, color="#17becf")

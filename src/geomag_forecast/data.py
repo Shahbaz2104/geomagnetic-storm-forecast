@@ -1,5 +1,6 @@
 """Dataset discovery, validation, and cleaning."""
 
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -11,6 +12,8 @@ from .config import (
     EXPECTED_SOLAR,
     KAGGLE_INPUT_ROOT,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def find_csvs(data_dir: Path | None) -> dict[str, Path]:
@@ -46,19 +49,32 @@ def load_and_validate(data_dir: Path | None) -> tuple[pd.DataFrame, pd.DataFrame
     geomag_raw = pd.read_csv(gmag_path)
     solar_raw = pd.read_csv(solar_path)
 
-    print(f"Geomagnetic file: {gmag_path} | shape={geomag_raw.shape}")
-    print(f"Solar file:       {solar_path} | shape={solar_raw.shape}")
-    print("Geomagnetic columns:", list(geomag_raw.columns))
-    print("Solar columns:", list(solar_raw.columns))
+    logger.info("Geomagnetic file: %s | shape=%s", gmag_path, geomag_raw.shape)
+    logger.info("Solar file:       %s | shape=%s", solar_path, solar_raw.shape)
+    logger.debug("Geomagnetic columns: %s", list(geomag_raw.columns))
+    logger.debug("Solar columns: %s", list(solar_raw.columns))
 
-    assert EXPECTED_GEOMAG.issubset(geomag_raw.columns), "Unexpected geomagnetic schema"
-    assert EXPECTED_SOLAR.issubset(solar_raw.columns), "Unexpected solar schema"
+    if not EXPECTED_GEOMAG.issubset(geomag_raw.columns):
+        raise ValueError(
+            f"Unexpected geomagnetic schema. Missing columns: "
+            f"{sorted(EXPECTED_GEOMAG - set(geomag_raw.columns))}"
+        )
+    if not EXPECTED_SOLAR.issubset(solar_raw.columns):
+        raise ValueError(
+            f"Unexpected solar schema. Missing columns: "
+            f"{sorted(EXPECTED_SOLAR - set(solar_raw.columns))}"
+        )
 
     geomag = geomag_raw.copy()
     solar = solar_raw.copy()
     geomag["Timestamp"] = pd.to_datetime(geomag["Timestamp"], errors="coerce", utc=True)
     solar["Date"] = pd.to_datetime(solar["Date"], errors="coerce", utc=True).dt.normalize()
-    assert geomag["Timestamp"].notna().all() and solar["Date"].notna().all()
+    if not (geomag["Timestamp"].notna().all() and solar["Date"].notna().all()):
+        raise ValueError(
+            "Date parsing produced missing values — the CSVs contain unparseable "
+            f"dates ({int(geomag['Timestamp'].isna().sum())} geomagnetic, "
+            f"{int(solar['Date'].isna().sum())} solar)."
+        )
 
     # The source uses '*' and -1 as sentinel values. Convert numeric-looking
     # columns explicitly; "Stanford Background X-Ray Flux" is kept as-is.
@@ -72,19 +88,23 @@ def load_and_validate(data_dir: Path | None) -> tuple[pd.DataFrame, pd.DataFrame
     geomag = geomag.sort_values("Timestamp").reset_index(drop=True)
     solar = solar.sort_values("Date").reset_index(drop=True)
 
-    print("Duplicate geomagnetic timestamps:", int(geomag["Timestamp"].duplicated().sum()))
-    print("Duplicate solar dates:", int(solar["Date"].duplicated().sum()))
-    print(
-        "Geomagnetic date range:",
+    logger.info("Duplicate geomagnetic timestamps: %d", int(geomag["Timestamp"].duplicated().sum()))
+    logger.info("Duplicate solar dates: %d", int(solar["Date"].duplicated().sum()))
+    logger.info(
+        "Geomagnetic date range: %s to %s",
         geomag["Timestamp"].min().date(),
-        "to",
         geomag["Timestamp"].max().date(),
     )
-    print("Solar date range:", solar["Date"].min().date(), "to", solar["Date"].max().date())
-    print(
-        "Converted missing values:",
+    logger.info(
+        "Solar date range: %s to %s",
+        solar["Date"].min().date(),
+        solar["Date"].max().date(),
+    )
+    logger.info(
+        "Converted missing values: %d",
         int(geomag.isna().sum().sum() + solar.isna().sum().sum()),
     )
-    assert geomag["Timestamp"].is_monotonic_increasing, "Geomagnetic chronology is not sorted"
+    if not geomag["Timestamp"].is_monotonic_increasing:
+        raise ValueError("Geomagnetic chronology is not sorted")
 
     return geomag, solar

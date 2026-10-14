@@ -1,0 +1,18 @@
+# Pinned so local runs and the Streamlit Community Cloud deployment render
+# the same dark theme as the screenshots in docs/.
+[theme]
+base = "dark"
+primaryColor = "#FF4B4B"
+backgroundColor = "#0E1117"
+secondaryBackgroundColor = "#262730"
+textColor = "#FAFAFA"
+font = "sans serif"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"

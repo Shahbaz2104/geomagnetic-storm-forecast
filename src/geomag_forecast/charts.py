@@ -12,7 +12,16 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from sklearn.metrics import auc, precision_recall_curve, roc_curve
+from sklearn.metrics import (
+    confusion_matrix,
+    f1_score,
+    precision_recall_curve,
+    precision_score,
+    recall_score,
+    roc_curve,
+)
+
+from .config import STORM_K_THRESHOLD
 
 # Colorblind-safe palette (data-visualization skill).
 BLUE = "#4C72B0"      # calm / primary series
@@ -37,8 +46,8 @@ def _finalize(fig: go.Figure, x_title: str = "", y_title: str = "", height: int 
     fig.update_layout(
         template="plotly_white",
         height=height,
-        margin=dict(l=40, r=20, t=55, b=40),
-        font=dict(size=12),
+        margin={"l": 40, "r": 20, "t": 55, "b": 40},
+        font={"size": 12},
         xaxis_title=x_title,
         yaxis_title=y_title,
         legend_title_text="",
@@ -64,21 +73,21 @@ def model_comparison(results: pd.DataFrame) -> go.Figure:
     )
     best = df.iloc[-1]
     fig.update_layout(
-        title=dict(
-            text=f"{best['model']} ranks storms best (AP {best['average_precision']:.3f})",
-            x=0,
-        )
+        title={
+            "text": f"{best['model']} ranks storms best (AP {best['average_precision']:.3f})",
+            "x": 0,
+        }
     )
     return _finalize(
         fig,
-        x_title="Average precision on the 2018–2024 test set (higher is better)",
+        x_title="Average precision on the held-out test set (higher is better)",
         height=320,
     )
 
 
 def storm_timeline(daily: pd.DataFrame) -> go.Figure:
     """Daily maximum estimated K with the storm threshold and storm days marked."""
-    d = daily.assign(storm=daily["gmag_k_max"] >= 5)
+    d = daily.assign(storm=daily["gmag_k_max"] >= STORM_K_THRESHOLD)
     fig = go.Figure()
     fig.add_trace(
         go.Scatter(
@@ -86,7 +95,7 @@ def storm_timeline(daily: pd.DataFrame) -> go.Figure:
             y=d["gmag_k_max"],
             mode="lines",
             name="Daily max K",
-            line=dict(color=BLUE, width=1),
+            line={"color": BLUE, "width": 1},
             hovertemplate="%{x|%Y-%m-%d}<br>max K: %{y:.1f}<extra></extra>",
         )
     )
@@ -96,19 +105,27 @@ def storm_timeline(daily: pd.DataFrame) -> go.Figure:
             x=storms["date"],
             y=storms["gmag_k_max"],
             mode="markers",
-            name="Storm days (K ≥ 5)",
-            marker=dict(color=ORANGE, size=4, symbol="triangle-up"),
+            name=f"Storm days (K ≥ {STORM_K_THRESHOLD})",
+            marker={"color": ORANGE, "size": 4, "symbol": "triangle-up"},
             hovertemplate="%{x|%Y-%m-%d}<br>max K: %{y:.1f}<extra></extra>",
         )
     )
     fig.add_hline(
-        y=5,
+        y=STORM_K_THRESHOLD,
         line_dash="dash",
         line_color=RED,
-        annotation_text="Storm threshold K = 5",
+        annotation_text=f"Storm threshold K = {STORM_K_THRESHOLD}",
         annotation_position="bottom right",
     )
-    fig.update_layout(title=dict(text="Storm days appear as spikes above the K = 5 threshold", x=0))
+    fig.update_layout(
+        title={
+            "text": (
+                "Storm days appear as spikes above the "
+                f"K = {STORM_K_THRESHOLD} threshold"
+            ),
+            "x": 0,
+        }
+    )
     return _finalize(fig, x_title="Date", y_title="Maximum estimated K")
 
 
@@ -125,7 +142,7 @@ def solar_cycle(solar: pd.DataFrame) -> go.Figure:
     fig.add_trace(
         go.Scatter(
             x=s["Date"], y=s["Sunspot Number"], mode="lines",
-            line=dict(color=BLUE, width=1), name="Sunspots",
+            line={"color": BLUE, "width": 1}, name="Sunspots",
             hovertemplate="%{x|%Y-%m-%d}<br>%{y:.0f}<extra>sunspots</extra>",
         ),
         row=1, col=1,
@@ -133,14 +150,14 @@ def solar_cycle(solar: pd.DataFrame) -> go.Figure:
     fig.add_trace(
         go.Scatter(
             x=s["Date"], y=s["Radio Flux 10.7cm"], mode="lines",
-            line=dict(color=ORANGE, width=1), name="Radio flux",
+            line={"color": ORANGE, "width": 1}, name="Radio flux",
             hovertemplate="%{x|%Y-%m-%d}<br>%{y:.0f} sfu<extra>flux</extra>",
         ),
         row=2, col=1,
     )
     fig.update_xaxes(rangeslider_visible=True, row=2, col=1)
     fig.update_layout(
-        title=dict(text="Solar activity rises and falls on an ~11-year cycle", x=0),
+        title={"text": "Solar activity rises and falls on an ~11-year cycle", "x": 0},
         showlegend=True,
     )
     return _finalize(fig, y_title="", height=520)
@@ -154,11 +171,11 @@ def flare_activity(solar: pd.DataFrame) -> go.Figure:
         fig.add_trace(
             go.Scatter(
                 x=s["Date"], y=s[flare], mode="lines", name=flare.replace("Flares: ", ""),
-                stackgroup="flares", line=dict(color=color, width=0.7),
+                stackgroup="flares", line={"color": color, "width": 0.7},
                 hovertemplate="%{x|%Y-%m-%d}<br>%{y:.0f}<extra>" + flare + "</extra>",
             )
         )
-    fig.update_layout(title=dict(text="X-class flares cluster at solar maximum", x=0))
+    fig.update_layout(title={"text": "X-class flares cluster at solar maximum", "x": 0})
     return _finalize(fig, x_title="Date", y_title="Flare count")
 
 
@@ -167,7 +184,7 @@ def storm_calendar(daily: pd.DataFrame) -> go.Figure:
     d = daily.assign(
         year=daily["date"].dt.year,
         month=daily["date"].dt.month,
-        is_storm=(daily["gmag_k_max"] >= 5).astype(int),
+        is_storm=(daily["gmag_k_max"] >= STORM_K_THRESHOLD).astype(int),
     )
     pivot = d.pivot_table(index="year", columns="month", values="is_storm", aggfunc="sum", fill_value=0)
     pivot = pivot.reindex(columns=range(1, 13), fill_value=0)
@@ -178,13 +195,13 @@ def storm_calendar(daily: pd.DataFrame) -> go.Figure:
         color_continuous_scale="YlOrRd",
         text_auto=True,
         aspect="auto",
-        labels=dict(color="Storm days"),
+        labels={"color": "Storm days"},
     )
     fig.update_traces(
         hovertemplate="Year %{y}<br>%{x}: %{z} storm days<extra></extra>"
     )
     fig.update_layout(
-        title=dict(text="Storm days per month — active years stand out", x=0),
+        title={"text": "Storm days per month — active years stand out", "x": 0},
         yaxis_title="Year",
     )
     return _finalize(fig, height=520)
@@ -198,7 +215,7 @@ def pr_curves(y_test: pd.Series, probs: dict[str, np.ndarray]) -> go.Figure:
         fig.add_trace(
             go.Scatter(
                 x=r, y=p, mode="lines", name=name,
-                line=dict(color=PALETTE_MODELS.get(name, BLUE), width=2),
+                line={"color": PALETTE_MODELS.get(name, BLUE), "width": 2},
                 hovertemplate="Recall %{x:.2f}<br>Precision %{y:.3f}<extra>" + name + "</extra>",
             )
         )
@@ -206,7 +223,7 @@ def pr_curves(y_test: pd.Series, probs: dict[str, np.ndarray]) -> go.Figure:
         y=prevalence, line_dash="dot", line_color=GREY,
         annotation_text=f"No-skill rate ({prevalence:.1%})", annotation_position="top right",
     )
-    fig.update_layout(title=dict(text="Precision–recall: learned models beat the baseline", x=0))
+    fig.update_layout(title={"text": "Precision–recall: learned models beat the baseline", "x": 0})
     return _finalize(fig, x_title="Recall", y_title="Precision")
 
 
@@ -217,23 +234,21 @@ def roc_curves(y_test: pd.Series, probs: dict[str, np.ndarray]) -> go.Figure:
         fig.add_trace(
             go.Scatter(
                 x=fpr, y=tpr, mode="lines", name=name,
-                line=dict(color=PALETTE_MODELS.get(name, BLUE), width=2),
+                line={"color": PALETTE_MODELS.get(name, BLUE), "width": 2},
                 hovertemplate="FPR %{x:.2f}<br>TPR %{y:.3f}<extra>" + name + "</extra>",
             )
         )
     fig.add_trace(
         go.Scatter(
             x=[0, 1], y=[0, 1], mode="lines", name="Chance",
-            line=dict(color=GREY, width=1, dash="dot"), showlegend=False,
+            line={"color": GREY, "width": 1, "dash": "dot"}, showlegend=False,
         )
     )
-    fig.update_layout(title=dict(text="ROC curves on the chronological test set", x=0))
+    fig.update_layout(title={"text": "ROC curves on the chronological test set", "x": 0})
     return _finalize(fig, x_title="False positive rate", y_title="True positive rate")
 
 
 def confusion_matrix_fig(y_true: pd.Series, pred: np.ndarray, title: str) -> go.Figure:
-    from sklearn.metrics import confusion_matrix
-
     cm = confusion_matrix(y_true, pred, labels=[0, 1])
     fig = px.imshow(
         cm,
@@ -241,16 +256,15 @@ def confusion_matrix_fig(y_true: pd.Series, pred: np.ndarray, title: str) -> go.
         y=["Observed calm", "Observed storm"],
         text_auto=True,
         color_continuous_scale="Blues",
-        labels=dict(color="Days"),
+        labels={"color": "Days"},
     )
     fig.update_traces(hovertemplate="%{y} / %{x}<br>%{z} days<extra></extra>")
-    fig.update_layout(title=dict(text=title, x=0))
+    fig.update_layout(title={"text": title, "x": 0})
     return _finalize(fig, height=360)
 
 
 def threshold_curve(y_test: pd.Series, prob: np.ndarray, selected: float) -> go.Figure:
     thresholds = np.linspace(0.02, 0.98, 97)
-    from sklearn.metrics import f1_score, precision_score, recall_score
 
     precision, recall, f1 = [], [], []
     for t in thresholds:
@@ -267,15 +281,15 @@ def threshold_curve(y_test: pd.Series, prob: np.ndarray, selected: float) -> go.
         fig.add_trace(
             go.Scatter(
                 x=thresholds, y=values, mode="lines", name=name,
-                line=dict(color=color, width=2, dash=dash),
+                line={"color": color, "width": 2, "dash": dash},
                 hovertemplate="%{x:.2f}: %{y:.3f}<extra>" + name + "</extra>",
             )
         )
     fig.add_vline(x=selected, line_color=RED, line_dash="dash")
     fig.update_layout(
-        title=dict(
-            text=f"Precision / recall trade-off — marker at {selected:.2f}", x=0
-        )
+        title={
+            "text": f"Precision / recall trade-off — marker at {selected:.2f}", "x": 0
+        }
     )
     return _finalize(fig, x_title="Classification threshold", y_title="Score")
 
@@ -296,7 +310,13 @@ def importance_bars(importance: pd.Series) -> go.Figure:
         )
     )
     fig.update_layout(
-        title=dict(text="Today's K-index variability is the strongest early signal", x=0)
+        title={
+            "text": (
+                f"{df.iloc[-1]['feature']} is the strongest early signal "
+                "(shuffling it costs the most average precision)"
+            ),
+            "x": 0,
+        }
     )
     return _finalize(
         fig,
@@ -328,7 +348,7 @@ def feature_scatter(daily: pd.DataFrame, x_col: str, y_col: str) -> go.Figure:
         symbol_map={"Calm": "circle", "Storm": "triangle-up"},
         opacity=0.55,
         category_orders={"Next day": ["Calm", "Storm"]},
-        title=f"{y_col} vs {x_col} — storm days (triangles) sit higher",
+        title=f"{y_col} vs {x_col} — colored by next-day outcome",
     )
     fig.update_layout(title_x=0)
     return _finalize(fig, x_title=x_col, y_title=y_col)
@@ -356,5 +376,5 @@ def probability_gauge(prob: float) -> go.Figure:
             },
         )
     )
-    fig.update_layout(template="plotly_white", height=300, margin=dict(l=30, r=30, t=60, b=10))
+    fig.update_layout(template="plotly_white", height=300, margin={"l": 30, "r": 30, "t": 60, "b": 10})
     return fig

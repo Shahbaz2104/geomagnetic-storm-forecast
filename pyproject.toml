@@ -3,7 +3,16 @@ name = "geomag-forecast"
 version = "0.1.0"
 description = "Next-day geomagnetic storm risk benchmark from solar + geomagnetic indices"
 readme = "README.md"
+license = "MIT"
+authors = [{ name = "Shahbaz" }]
 requires-python = ">=3.10"
+keywords = [
+    "space-weather",
+    "geomagnetic-storm",
+    "time-series",
+    "machine-learning",
+    "streamlit",
+]
 dependencies = [
     "numpy>=1.26",
     "pandas>=2.1",
@@ -14,8 +23,17 @@ dependencies = [
     "plotly>=7.1.0",
 ]
 
+[project.urls]
+Repository = "https://github.com/Shahbaz2104/geomagnetic-storm-forecast"
+
 [project.scripts]
 forecast = "geomag_forecast.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.8",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -23,3 +41,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/geomag_forecast"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"

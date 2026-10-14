@@ -1,6 +1,5 @@
-# Data (download via scripts/download_data.sh)
-data/raw/*
-!data/raw/.gitkeep
+# Dataset CSVs are committed so the app runs out of the box;
+# refresh with scripts/download_data.sh (needs Kaggle credentials)
 
 # Generated figures and metrics
 outputs/*
@@ -12,6 +11,7 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .pytest_cache/
+.ruff_cache/
 
 # Environments / credentials
 .env

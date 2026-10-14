@@ -1,6 +1,11 @@
 # Forecasting next-day geomagnetic storm risk from solar activity
 
-A practical, leakage-safe benchmark that asks: **can information available by the end of day _t_ distinguish whether day _t+1_ will contain a geomagnetic storm** (maximum estimated 3-hour K-index ≥ 5)?
+[![CI](https://github.com/Shahbaz2104/geomagnetic-storm-forecast/actions/workflows/ci.yml/badge.svg)](https://github.com/Shahbaz2104/geomagnetic-storm-forecast/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Streamlit](https://img.shields.io/badge/Interactive%20dashboard-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://share.streamlit.io/Shahbaz2104/geomagnetic-storm-forecast/main/dashboard.py)
+
+**[Live demo](https://share.streamlit.io/Shahbaz2104/geomagnetic-storm-forecast/main/dashboard.py)** · A practical, leakage-safe benchmark that asks: **can information available by the end of day _t_ distinguish whether day _t+1_ will contain a geomagnetic storm** (maximum estimated 3-hour K-index ≥ 5)?
 
 This repository is a faithful, runnable port of the Kaggle notebook exported in [`docs/prompt.md`](docs/prompt.md). The emphasis is a transparent early-warning baseline, not a claim of operational forecasting skill.
 
@@ -27,15 +32,12 @@ Coverage: 1997-01-01 → 2024-04-12. The source uses `*` (and `-1` in documentat
 
 ## Quickstart
 
-Requires [uv](https://docs.astral.sh/uv/).
+Requires [uv](https://docs.astral.sh/uv/). The dataset CSVs are committed, so a clone runs out of the box:
 
 ```bash
-# 1. Fetch the dataset (needs Kaggle API credentials; see script for details)
-./scripts/download_data.sh
-
-# 2. Install dependencies and run the full pipeline
 uv sync
-uv run forecast
+uv run streamlit run dashboard.py   # interactive dashboard
+uv run forecast                     # full pipeline: metrics + figures -> outputs/
 ```
 
 Figures and `results.csv` are written to `outputs/`. Useful flags:
@@ -43,6 +45,12 @@ Figures and `results.csv` are written to `outputs/`. Useful flags:
 ```bash
 uv run forecast --skip-plots           # metrics only
 uv run forecast --data-dir /kaggle/input   # run against a Kaggle attachment
+```
+
+To refresh the dataset from Kaggle (optional; needs API credentials, see script for details):
+
+```bash
+./scripts/download_data.sh
 ```
 
 ## Interactive dashboard
@@ -74,6 +82,10 @@ uv run streamlit run dashboard.py
 ```
 .
 ├── dashboard.py                   # streamlit + plotly dashboard entrypoint
+├── .streamlit/config.toml         # pinned dark theme (matches the screenshots)
+├── .github/workflows/ci.yml       # lint + test on every push/PR
+├── LICENSE                        # MIT
+├── requirements.txt               # pinned deps (Streamlit Community Cloud deploy)
 ├── docs/prompt.md                 # original Kaggle notebook export (source writeup)
 ├── docs/dashboard_*.png           # dashboard screenshots
 ├── scripts/download_data.sh       # Kaggle CLI download via uvx
@@ -85,9 +97,20 @@ uv run streamlit run dashboard.py
 │   ├── evaluation.py              # figures, classification report, permutation importance
 │   ├── charts.py                  # plotly figure builders for the dashboard
 │   └── cli.py                     # `forecast` entrypoint
-├── data/raw/                      # CSVs (gitignored)
+├── tests/                         # pytest suite (synthetic units + real-data smoke test)
+├── data/raw/                      # committed dataset CSVs
 └── outputs/                       # generated figures + metrics (gitignored)
 ```
+
+## Tests
+
+```bash
+uv sync --group dev
+uv run pytest          # 19 tests: target construction, leakage, split, charts, smoke
+uv run ruff check .
+```
+
+The suite covers next-day target construction and the NOAA threshold boundary, the leakage audit (future columns must never enter X), the chronological split, schema/sentinel validation, chart structure, plus an end-to-end smoke test against the committed dataset. CI runs both commands on every push.
 
 ## Reference results
 
@@ -103,7 +126,7 @@ Top permutation importances (logistic regression): `gmag_k_mean` (0.089), `gmag_
 
 Storm prevalence in the model table: 13.09% (8,076 calm / 1,216 storm days).
 
-> Logistic regression, the persistence baseline, the classification report, and the permutation importances reproduce exactly. Histogram gradient boosting can differ slightly across scikit-learn versions (e.g. AP 0.236 with scikit-learn 1.9.1); `outputs/results.csv` reflects the versions locked in `uv.lock`.
+> Logistic regression, the persistence baseline, the classification report, and the permutation importances reproduce exactly. Histogram gradient boosting can vary slightly across scikit-learn versions: the locked environment in `uv.lock` (scikit-learn 1.7.2) yields AP 0.236 versus 0.229 in the table above; `uv run forecast` regenerates `outputs/results.csv` for whatever environment you run.
 
 ## Limitations
 
@@ -116,3 +139,7 @@ Storm prevalence in the model table: 13.09% (8,076 calm / 1,216 storm days).
 1. [NOAA Space Weather Prediction Center — Planetary K-index](https://www.spaceweather.gov/products/planetary-k-index)
 2. [Kervalishvili et al. (2025), A Novel Model for Forecasting Geomagnetic Indices Using Machine Learning](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2025GL114848)
 3. [Wang et al. (2023), A machine learning-based model for the next 3-day geomagnetic index (Kp) forecast](https://www.frontiersin.org/journals/astronomy-and-space-sciences/articles/10.3389/fspas.2023.1082737/full)
+
+## License
+
+Released under the [MIT License](LICENSE).

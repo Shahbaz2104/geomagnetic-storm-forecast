@@ -1,6 +1,7 @@
 """End-to-end CLI: data -> features -> chronological split -> models -> reports."""
 
 import argparse
+import logging
 from pathlib import Path
 
 from .config import DEFAULT_DATA_DIR, DEFAULT_OUTPUT_DIR, RANDOM_STATE
@@ -12,6 +13,8 @@ from .evaluation import (
 )
 from .features import build_daily_table, leakage_audit
 from .models import build_pipelines, chronological_split, evaluate
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -40,8 +43,9 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     args = parse_args()
-    print(f"Random state: {RANDOM_STATE}")
+    logger.info("Random state: %s", RANDOM_STATE)
 
     # 1. Locate and validate the dataset.
     geomag, solar = load_and_validate(args.data_dir)
@@ -71,7 +75,7 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     results_path = args.output_dir / "results.csv"
     results.to_csv(results_path, index=False)
-    print(f"Saved metrics: {results_path}")
+    logger.info("Saved metrics: %s", results_path)
 
 
 if __name__ == "__main__":

@@ -66,18 +66,35 @@ def run_pipeline() -> dict:
     }
 
 
-RUN = run_pipeline()
+try:
+    RUN = run_pipeline()
+except FileNotFoundError as exc:
+    st.error(
+        "The dataset is missing, so nothing can be loaded.\n\n"
+        f"{exc}\n\n"
+        "Either restore the CSVs in `data/raw/` or re-fetch them with "
+        "`./scripts/download_data.sh`, then refresh this page."
+    )
+    st.stop()
+
 daily: pd.DataFrame = RUN["daily"]
 results: pd.DataFrame = RUN["results"]
 y_test: pd.Series = RUN["y_test"]
 probs: dict[str, np.ndarray] = RUN["probs"]
 importance: pd.Series = RUN["importance"]
 feature_cols: list[str] = RUN["feature_cols"]
+test: pd.DataFrame = RUN["test"]
 
 best_name = results.iloc[0]["model"]
 best_row = results.iloc[0]
 persist_row = results[results["model"] == "Persistence baseline"].iloc[0]
 lift = best_row["average_precision"] / persist_row["average_precision"] - 1
+test_storm_rate = float(y_test.mean())
+
+
+def default_date(d: pd.DataFrame) -> dt.date:
+    """A mid-range date that exists in the table."""
+    return d["date"].iloc[len(d) // 2].date()
 
 
 # --------------------------------------------------------------------------
@@ -102,8 +119,8 @@ section = st.sidebar.radio(
 )
 st.sidebar.divider()
 st.sidebar.caption(
-    "Chronological 80/20 split · test window 2018-09-27 → 2024-04-11 · "
-    "storm threshold K ≥ 5 (NOAA)"
+    f"Chronological 80/20 split · test window {test['date'].min().date()} → "
+    f"{test['date'].max().date()} · storm threshold K ≥ {STORM_K_THRESHOLD} (NOAA)"
 )
 
 
@@ -116,8 +133,8 @@ def overview() -> None:
         f"**Headline:** {best_name} lifts next-day storm ranking "
         f"**{lift:.0%}** above the persistence baseline "
         f"(AP {best_row['average_precision']:.3f} vs {persist_row['average_precision']:.3f}). "
-        "Storms are rare — only about 8% of test days — so precision at the default "
-        "threshold stays modest while recall stays useful for early warning."
+        f"Storms are rare — only {test_storm_rate:.1%} of test days — so precision at the "
+        "default threshold stays modest while recall stays useful for early warning."
     )
 
     c1, c2, c3, c4 = st.columns(4)
@@ -360,11 +377,6 @@ def predict_day() -> None:
             row[feature_cols].to_frame(name="value").T,
             width="stretch",
         )
-
-
-def default_date(d: pd.DataFrame) -> dt.date:
-    """A mid-range date that exists in the table."""
-    return d["date"].iloc[len(d) // 2].date()
 
 
 SECTIONS = {

@@ -1,9 +1,13 @@
 """Daily feature construction and next-day target definition."""
 
+import logging
+
 import numpy as np
 import pandas as pd
 
 from .config import SOLAR_FEATURES, STORM_K_THRESHOLD
+
+logger = logging.getLogger(__name__)
 
 
 def build_daily_table(geomag: pd.DataFrame, solar: pd.DataFrame) -> pd.DataFrame:
@@ -42,18 +46,22 @@ def build_daily_table(geomag: pd.DataFrame, solar: pd.DataFrame) -> pd.DataFrame
     daily = daily.dropna(subset=["next_day_storm"]).copy()
     daily["next_day_storm"] = daily["next_day_storm"].astype(int)
 
-    print("Model table shape:", daily.shape)
-    print("Model date range:", daily["date"].min().date(), "to", daily["date"].max().date())
-    print("Storm prevalence:", f"{daily['next_day_storm'].mean():.3%}")
-    print(
-        "Class counts:",
+    logger.info("Model table shape: %s", daily.shape)
+    logger.info(
+        "Model date range: %s to %s",
+        daily["date"].min().date(),
+        daily["date"].max().date(),
+    )
+    logger.info("Storm prevalence: %.3f%%", 100 * daily["next_day_storm"].mean())
+    logger.info(
+        "Class counts: %s",
         daily["next_day_storm"].value_counts().sort_index().to_dict(),
     )
     return daily
 
 
 def leakage_audit(daily: pd.DataFrame) -> list[str]:
-    """Return feature columns and print a human-readable target audit.
+    """Return feature columns after auditing that no future column leaks into X.
 
     The target is defined from the following day's data only; future columns
     are excluded from the feature list so no leakage can enter X.
@@ -61,15 +69,19 @@ def leakage_audit(daily: pd.DataFrame) -> list[str]:
     feature_cols = [
         c for c in daily.columns if c not in {"date", "next_day_max_k", "next_day_storm"}
     ]
-    assert daily["next_day_storm"].notna().all()
-    assert "next_day_max_k" not in feature_cols
-    assert "next_day_storm" not in feature_cols
-    assert "date" not in feature_cols
+    problems = []
+    if not daily["next_day_storm"].notna().all():
+        problems.append("next_day_storm contains missing values")
+    for leaked in ("next_day_max_k", "next_day_storm", "date"):
+        if leaked in feature_cols:
+            problems.append(f"{leaked!r} leaked into the feature list")
+    if problems:
+        raise ValueError("Leakage audit failed: " + "; ".join(problems))
 
     audit = daily[["date", "next_day_max_k", "next_day_storm"]].head(5).copy()
     audit["target_date"] = audit["date"] + pd.Timedelta(days=1)
-    print(audit.to_string(index=False))
-    print(
+    logger.info("Leakage audit (first 5 rows):\n%s", audit.to_string(index=False))
+    logger.info(
         "Leakage audit passed: target is next-day only; future target columns "
         "are excluded from X."
     )
